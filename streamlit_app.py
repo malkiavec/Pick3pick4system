@@ -182,4 +182,3 @@ if draws:
 
 else:
     st.info("Upload your history CSV to start analysis.")
-
