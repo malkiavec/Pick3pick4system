@@ -1,4 +1,3 @@
-
 # shift_based_prediction.py
 # Run: streamlit run shift_based_prediction.py
 
@@ -10,8 +9,14 @@ from typing import List, Tuple, Dict
 import numpy as np
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
-import seaborn as sns
+
+# Optional: only import plotting when used
+try:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    HAS_PLOTTING = True
+except Exception:
+    HAS_PLOTTING = False
 
 st.set_page_config(page_title="Shift-Based Prediction System", layout="wide")
 st.title("⚙️ Shift-Based Prediction System (Pick 3 / Pick 4)")
@@ -154,11 +159,11 @@ if draws:
         df_mat = transition_matrix_to_df(trans)
         st.dataframe(df_mat)
 
-        # Heatmap
-        fig, ax = plt.subplots(figsize=(6,4))
-        sns.heatmap(df_mat, annot=False, cmap="Blues", cbar=True, ax=ax)
-        ax.set_title(f"Lag {lag} Transition Heatmap")
-        st.pyplot(fig)
+        if HAS_PLOTTING:
+            fig, ax = plt.subplots(figsize=(6,4))
+            sns.heatmap(df_mat, annot=False, cmap="Blues", cbar=True, ax=ax)
+            ax.set_title(f"Lag {lag} Transition Heatmap")
+            st.pyplot(fig)
 
     probs = normalize_matrix(all_trans)
 
@@ -177,3 +182,4 @@ if draws:
 
 else:
     st.info("Upload your history CSV to start analysis.")
+
