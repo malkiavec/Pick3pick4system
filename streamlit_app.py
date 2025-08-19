@@ -6,7 +6,6 @@ import itertools as it
 import math
 from collections import Counter
 from typing import List, Tuple, Dict
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
