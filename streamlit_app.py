@@ -7,7 +7,6 @@ from collections import Counter
 from typing import List, Tuple, Dict
 
 import numpy as np
-import pandas as pd
 import streamlit as st
 
 # Optional: only import plotting when used
@@ -33,10 +32,8 @@ def to_tuple(x) -> Tuple[int, ...]:
     digs = [int(ch) for ch in s if ch.isdigit()]
     return tuple(digs)
 
-
 def tuple_to_str(t: Tuple[int, ...]) -> str:
     return ''.join(str(d) for d in t)
-
 
 def greedy_multiset_mapping(a: Tuple[int, ...], b: Tuple[int, ...]):
     ca, cb = Counter(a), Counter(b)
@@ -58,7 +55,6 @@ def greedy_multiset_mapping(a: Tuple[int, ...], b: Tuple[int, ...]):
         pairs.append((x, y))
     return pairs
 
-
 def extract_digit_transitions(draws: List[Tuple[int, ...]], lag: int) -> Counter:
     trans = Counter()
     for i in range(len(draws) - lag):
@@ -67,7 +63,6 @@ def extract_digit_transitions(draws: List[Tuple[int, ...]], lag: int) -> Counter
         for x, y in pairs:
             trans[(x, y)] += 1
     return trans
-
 
 def normalize_matrix(cnt: Counter) -> Dict[Tuple[int, int], float]:
     totals = Counter()
@@ -79,8 +74,7 @@ def normalize_matrix(cnt: Counter) -> Dict[Tuple[int, int], float]:
         probs[(x, y)] = c / denom
     return probs
 
-
-def transition_matrix_to_df(trans: Counter) -> pd.DataFrame:
+def transition_matrix_to_df(trans: Counter) -> np.ndarray:
     mat = np.zeros((10, 10), dtype=float)
     for (x, y), c in trans.items():
         mat[x, y] += c
@@ -88,9 +82,7 @@ def transition_matrix_to_df(trans: Counter) -> pd.DataFrame:
         row_sum = mat[x].sum()
         if row_sum > 0:
             mat[x] = mat[x] / row_sum
-    df = pd.DataFrame(mat, index=[f"{i}" for i in range(10)], columns=[f"{j}" for j in range(10)])
-    return df
-
+    return mat
 
 def apply_positionless_transitions(seed: Tuple[int, ...], probs: Dict[Tuple[int,int], float], top_k: int = 3) -> List[Tuple[int, ...]]:
     choices_per_digit = []
@@ -104,7 +96,6 @@ def apply_positionless_transitions(seed: Tuple[int, ...], probs: Dict[Tuple[int,
     raw = list(it.product(*choices_per_digit))
     outs = set(tuple(r) for r in raw)
     return list(outs)
-
 
 def score_by_transition_likelihood(cand: Tuple[int, ...], seed: Tuple[int, ...], probs: Dict[Tuple[int,int], float]) -> float:
     pairs = greedy_multiset_mapping(seed, cand)
@@ -122,8 +113,9 @@ st.sidebar.header("History Input")
 mode = st.sidebar.selectbox("Game", ["Pick 3", "Pick 4"], index=1)
 n_digits = 3 if mode == "Pick 3" else 4
 
-hist_file = st.sidebar.file_uploader("Upload history CSV (one column with draws like 654 or 9724)", type=["csv"])
-hist_col = st.sidebar.text_input("Draw column name (optional)")
+hist_file = st.sidebar.file_uploader(
+    "Upload history TXT (one draw per line, e.g. 654 or 9724)", type=["txt"]
+)
 
 recent_window = st.sidebar.slider("Recent window for speed detection (draws)", 5, 100, 20, 1)
 max_lag = st.sidebar.slider("Max skip (lag) to analyze", 1, 5, 3, 1)
@@ -139,15 +131,21 @@ num_preds = int(play_mode.split()[0])
 
 draws = []
 if hist_file is not None:
-    df = pd.read_csv(hist_file)
-    if hist_col and hist_col in df.columns:
-        col = df[hist_col]
-    else:
-        col = df.iloc[:,0]
-    for val in col.dropna():
-        digs = to_tuple(val)
-        if len(digs) == n_digits:
-            draws.append(digs)
+    try:
+        lines = hist_file.read().decode("utf-8").splitlines()
+    except Exception:
+        lines = []
+    for val in lines:
+        val = val.strip()
+        if val:
+            digs = to_tuple(val)
+            if len(digs) == n_digits:
+                draws.append(digs)
+    if not draws:
+        st.warning(
+            "No valid draws found in the uploaded TXT file. "
+            "Check that your file contains draws with the correct number of digits (one per line)."
+        )
 
 if draws:
     st.subheader("Transition Analysis")
@@ -160,8 +158,10 @@ if draws:
         st.dataframe(df_mat)
 
         if HAS_PLOTTING:
+            import pandas as pd
             fig, ax = plt.subplots(figsize=(6,4))
-            sns.heatmap(df_mat, annot=False, cmap="Blues", cbar=True, ax=ax)
+            sns.heatmap(pd.DataFrame(df_mat, index=[f"{i}" for i in range(10)], columns=[f"{j}" for j in range(10)]),
+                        annot=False, cmap="Blues", cbar=True, ax=ax)
             ax.set_title(f"Lag {lag} Transition Heatmap")
             st.pyplot(fig)
 
@@ -178,7 +178,6 @@ if draws:
     preds = [tuple_to_str(c) for c, _ in scored[:num_preds]]
     st.write(preds)
 
-    st.download_button("Download Predictions", pd.Series(preds).to_csv(index=False), "predictions.csv")
-
+    st.download_button("Download Predictions", "\n".join(preds), "predictions.txt")
 else:
-    st.info("Upload your history CSV to start analysis.")
+    st.info("Upload your history TXT to start analysis.")
