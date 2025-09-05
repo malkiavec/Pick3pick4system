@@ -4,4 +4,3 @@ numpy
 math
 seaborn
 matplotlib
-counter
