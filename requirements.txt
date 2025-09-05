@@ -2,3 +2,5 @@ streamlit
 itertools
 numpy
 math
+seaborn
+matplotlib
